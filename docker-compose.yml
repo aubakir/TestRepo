@@ -1,0 +1,13 @@
+services:
+  speedtest:
+    build: .
+    command: >
+      sh -c "python app.py
+        $${URL:-}
+        $${REQUESTS:+--num-requests $${REQUESTS}}
+        $${TIMEOUT:+--timeout $${TIMEOUT}}"
+    environment:
+      - URL=${URL:-}
+      - REQUESTS=${REQUESTS:-}
+      - TIMEOUT=${TIMEOUT:-}
+    network_mode: host   # прямой доступ к сети хоста для точных замеров
