@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Тренажёр по вопросам Python</title>
+  <style>
+    :root { font-family: "Segoe UI", Arial, sans-serif; color: #172033; background: #f3f5f9; color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header { background: white; padding: 20px; border-bottom: 1px solid #e0e5ef; }
+    header h1 { font-size: 22px; max-width: 1200px; margin: auto; }
+    main { max-width: 1240px; padding: 20px; margin: auto; }
+    button, input { font: inherit; }
+    button, .file-label { cursor: pointer; border: 1px solid #d5ddec; border-radius: 9px; background: #eef1f8; padding: 11px 16px; color: #263650; }
+    button:hover, .file-label:hover { border-color: #4357db; }
+    button:disabled { cursor: default; opacity: .6; }
+    :focus-visible { outline: 3px solid #8296fa; outline-offset: 3px; }
+    .primary { background: #4357db; color: white; }
+    .panel { background: white; border: 1px solid #e0e5ef; border-radius: 16px; padding: 24px; }
+    .hidden { display: none !important; }
+    .welcome { max-width: 700px; margin: 50px auto; line-height: 1.7; }
+    .file-label { display: inline-block; }
+    .muted { color: #647087; }
+    .error { color: #ad2438; white-space: pre-wrap; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; align-items: start; }
+    .stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; align-items: center; }
+    .stat { border-radius: 9px; padding: 10px 12px; background: white; border: 1px solid #e0e5ef; }
+    .toggle { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+    .tags { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .tag { background: #edf0f9; padding: 6px 10px; border-radius: 20px; font-size: 13px; }
+    .junior { color: #17613e; background: #e7f6ee; }
+    .middle { color: #805100; background: #fff1d2; }
+    .senior { color: #922b3c; background: #fdecef; }
+    h2 { font-size: 22px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+    #competency { font-size: 13px; line-height: 1.5; }
+    .answers { display: grid; gap: 12px; margin-top: 24px; }
+    .answer { text-align: left; background: white; display: flex; gap: 12px; line-height: 1.6; width: 100%; }
+    .answer:disabled { opacity: 1; }
+    .letter { flex: 0 0 28px; text-align: center; border-radius: 50%; background: #edf0f6; }
+    .answer-text { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
+    .is-correct { color: #155c3d; background: #edf9f2; border-color: #62bb87; }
+    .is-wrong { color: #922b3c; background: #fff0f2; border-color: #e293a1; }
+    .feedback { padding: 15px; border-radius: 9px; margin-top: 18px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .feedback.correct { background: #edf9f2; color: #155c3d; }
+    .feedback.incorrect { background: #fff0f2; color: #922b3c; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; margin-top: 24px; }
+    aside h3 { margin-top: 0; }
+    .legend { font-size: 13px; line-height: 1.6; }
+    .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; }
+    .question-link { padding: 10px 0; font-size: 13px; min-width: 0; }
+    .question-link.answered { background: #e7f6ee; color: #17613e; }
+    .question-link.incorrect { background: #fdecef; color: #922b3c; }
+    .question-link.current { border: 2px solid #4357db; font-weight: bold; }
+    .question-link.later { box-shadow: inset 0 0 0 2px #e6a329; }
+    .full { width: 100%; margin-top: 18px; }
+    .result { max-width: 700px; margin: 40px auto; line-height: 1.7; }
+    @media (max-width: 800px) {
+      .layout { grid-template-columns: 1fr; }
+      .grid { grid-template-columns: repeat(10, 1fr); }
+      main { padding: 12px; }
+      .panel { padding: 18px; }
+    }
+    @media (max-width: 450px) { .grid { grid-template-columns: repeat(7, 1fr); } }
+  </style>
+</head>
+<body>
+  <header><h1>Подготовка к тестированию · Python</h1></header>
+  <main>
+    <section id="welcome" class="panel welcome">
+      <h2>Тренажёр по вопросам</h2>
+      <p>Все вопросы перемешиваются при запуске. Выбирайте ответы, проверяйте себя и отмечайте вопросы на потом.</p>
+      <p id="loadStatus" class="muted" role="status">Загружаю questions-main.json…</p>
+      <label for="fileInput" class="file-label primary">Выбрать файл вопросов</label>
+      <p class="muted">Выберите questions-main.json из папки с этой страницей, если автоматическая загрузка недоступна.</p>
+    </section>
+    <input id="fileInput" class="hidden" type="file" accept=".json,application/json">
+    <p id="loadError" class="error" role="alert"></p>
+
+    <section id="quiz" class="layout hidden">
+      <div>
+        <div class="stats">
+          <span class="stat">Всего: <strong id="totalCount">0</strong></span>
+          <span class="stat">Отвечено: <strong id="answeredCount">0</strong></span>
+          <span class="stat">Правильно: <strong id="correctCount">0</strong></span>
+          <span class="stat">На потом: <strong id="laterCount">0</strong></span>
+          <label class="stat toggle"><input id="showAllAnswers" type="checkbox" autocomplete="off"> Показать все ответы</label>
+        </div>
+        <article class="panel">
+          <div class="tags">
+            <span id="levelTag" class="tag"></span>
+            <span id="typeTag" class="tag"></span>
+            <span id="questionNumber" class="muted"></span>
+          </div>
+          <h2 id="questionText"></h2>
+          <p id="competency" class="muted"></p>
+          <div id="answers" class="answers"></div>
+          <div id="feedback" class="feedback hidden" role="status"></div>
+          <div class="actions">
+            <button id="previousButton" type="button">← Назад</button>
+            <button id="laterButton" type="button">Оставить на потом</button>
+            <button id="nextButton" class="primary" type="button">Далее →</button>
+          </div>
+        </article>
+      </div>
+      <aside class="panel">
+        <h3>Навигация по вопросам</h3>
+        <p class="legend muted">Серый — без ответа · зелёный — верно · красный — ошибка · жёлтая рамка — на потом</p>
+        <div id="questionGrid" class="grid"></div>
+        <button id="finishButton" type="button" class="primary full">Завершить тест</button>
+        <button id="changeFile" type="button" class="full">Загрузить другой файл</button>
+      </aside>
+    </section>
+    <section id="results" class="panel result hidden">
+      <h2>Результаты</h2>
+      <p id="resultSummary"></p>
+      <p id="unansweredSummary" class="muted"></p>
+      <div class="actions">
+        <button id="returnButton" type="button" class="primary">Вернуться к вопросам</button>
+        <button id="restartButton" type="button">Начать заново</button>
+      </div>
+    </section>
+  </main>
+  <script>
+    const element = (id) => document.getElementById(id);
+    const levels = { junior: "Начальный · Junior", middle: "Средний · Middle", senior: "Продвинутый · Senior" };
+    const types = { theoretical: "Теория", practical: "Практика" };
+    let questions = [];
+    let currentIndex = 0;
+    let loadVersion = 0;
+
+    function parseQuestions(data) {
+      if (!data || !Array.isArray(data.questions) || !data.questions.length) {
+        throw new Error("Не найден непустой массив questions.");
+      }
+      return data.questions.map((question, index) => {
+        const fail = (message) => { throw new Error(`Вопрос №${index + 1}: ${message}`); };
+        if (!question || typeof question.question !== "string" || !question.question.trim()) fail("отсутствует текст.");
+        const options = question.wrong_answers;
+        if (!Array.isArray(options) || options.length < 2 ||
+            options.some((option) => typeof option !== "string" || !option.trim())) fail("неверные варианты ответа.");
+        const correctIndex = question.correct_position - 1;
+        if (!Number.isInteger(correctIndex) || correctIndex < 0 || correctIndex >= options.length ||
+            options[correctIndex] !== question.correct_answer) fail("ключ правильного ответа не согласован с вариантами.");
+        return {
+          text: question.question, options, correctIndex,
+          level: typeof question.level === "string" ? question.level : "",
+          type: typeof question.question_type === "string" ? question.question_type : "",
+          competency: typeof question.competency_name === "string" ? question.competency_name : ""
+        };
+      });
+    }
+
+    function startQuiz(source) {
+      questions = source.map((question) => ({ ...question, selected: null, later: false }));
+      for (let i = questions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [questions[i], questions[j]] = [questions[j], questions[i]];
+      }
+      currentIndex = 0;
+      element("showAllAnswers").checked = false;
+      element("loadError").textContent = "";
+      element("welcome").classList.add("hidden");
+      element("results").classList.add("hidden");
+      element("quiz").classList.remove("hidden");
+      render();
+    }
+
+    function render() {
+      const question = questions[currentIndex];
+      if (!question) return;
+      element("totalCount").textContent = questions.length;
+      element("answeredCount").textContent = questions.filter((item) => item.selected !== null).length;
+      element("correctCount").textContent = questions.filter((item) => item.selected === item.correctIndex).length;
+      element("laterCount").textContent = questions.filter((item) => item.later).length;
+      element("levelTag").textContent = levels[question.level] || question.level || "Уровень не указан";
+      element("levelTag").className = "tag";
+      if (Object.hasOwn(levels, question.level)) element("levelTag").classList.add(question.level);
+      element("typeTag").textContent = types[question.type] || question.type || "Тип не указан";
+      element("questionNumber").textContent = `Вопрос ${currentIndex + 1} из ${questions.length}`;
+      element("questionText").textContent = question.text;
+      element("competency").textContent = question.competency;
+      element("answers").replaceChildren();
+      question.options.forEach((text, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "answer";
+        button.disabled = question.selected !== null;
+        if ((element("showAllAnswers").checked || question.selected !== null) && index === question.correctIndex) {
+          button.classList.add("is-correct");
+          button.setAttribute("aria-label", `Правильный ответ: ${text}`);
+        }
+        if (question.selected === index && index !== question.correctIndex) button.classList.add("is-wrong");
+        const letter = document.createElement("span");
+        letter.className = "letter";
+        letter.textContent = String(index + 1);
+        const content = document.createElement("span");
+        content.className = "answer-text";
+        content.textContent = text;
+        button.append(letter, content);
+        button.addEventListener("click", () => {
+          if (question.selected !== null) return;
+          question.selected = index;
+          render();
+        });
+        element("answers").append(button);
+      });
+      const feedback = element("feedback");
+      feedback.className = "feedback hidden";
+      feedback.textContent = "";
+      if (question.selected !== null) {
+        const correct = question.selected === question.correctIndex;
+        feedback.className = `feedback ${correct ? "correct" : "incorrect"}`;
+        feedback.textContent = correct ? "Верно! Это правильный ответ." : `Неверно. Правильный ответ: ${question.options[question.correctIndex]}`;
+      }
+      element("previousButton").disabled = currentIndex === 0;
+      element("nextButton").textContent = currentIndex === questions.length - 1 ? "К первому вопросу →" : "Далее →";
+      element("laterButton").textContent = question.later ? "Убрать отметку «на потом»" : "Оставить на потом";
+      element("laterButton").setAttribute("aria-pressed", String(question.later));
+      element("questionGrid").replaceChildren();
+      questions.forEach((item, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "question-link";
+        button.textContent = index + 1;
+        const status = item.selected === null ? "без ответа" : item.selected === item.correctIndex ? "верно" : "ошибка";
+        button.setAttribute("aria-label", `Вопрос ${index + 1}, ${status}${item.later ? ", на потом" : ""}`);
+        if (item.selected !== null) button.classList.add(item.selected === item.correctIndex ? "answered" : "incorrect");
+        if (item.later) button.classList.add("later");
+        if (index === currentIndex) {
+          button.classList.add("current");
+          button.setAttribute("aria-current", "step");
+        }
+        button.addEventListener("click", () => { currentIndex = index; render(); });
+        element("questionGrid").append(button);
+      });
+    }
+
+    element("showAllAnswers").checked = false;
+    element("showAllAnswers").addEventListener("change", render);
+    element("previousButton").addEventListener("click", () => { if (currentIndex > 0) currentIndex--; render(); });
+    element("nextButton").addEventListener("click", () => { currentIndex = (currentIndex + 1) % questions.length; render(); });
+    element("laterButton").addEventListener("click", () => { questions[currentIndex].later = !questions[currentIndex].later; render(); });
+    element("changeFile").addEventListener("click", () => element("fileInput").click());
+    element("fileInput").addEventListener("change", async () => {
+      const file = element("fileInput").files[0];
+      if (!file) return;
+      const version = ++loadVersion;
+      element("loadError").textContent = "";
+      try {
+        const data = JSON.parse((await file.text()).replace(/^\uFEFF/, ""));
+        if (version === loadVersion) startQuiz(parseQuestions(data));
+      } catch (error) {
+        if (version === loadVersion) element("loadError").textContent = `Не удалось загрузить вопросы: ${error.message}`;
+      } finally {
+        element("fileInput").value = "";
+      }
+    });
+    element("finishButton").addEventListener("click", () => {
+      const answered = questions.filter((item) => item.selected !== null).length;
+      const correct = questions.filter((item) => item.selected === item.correctIndex).length;
+      const unanswered = questions.flatMap((item, index) => item.selected === null ? [index + 1] : []);
+      element("resultSummary").textContent = `Правильно: ${correct} из ${questions.length}. Отвечено: ${answered} из ${questions.length}.`;
+      element("unansweredSummary").textContent = unanswered.length ? `Без ответа: ${unanswered.join(", ")}.` : "Вы ответили на все вопросы.";
+      element("quiz").classList.add("hidden");
+      element("results").classList.remove("hidden");
+    });
+    element("returnButton").addEventListener("click", () => {
+      element("results").classList.add("hidden");
+      element("quiz").classList.remove("hidden");
+      render();
+    });
+    element("restartButton").addEventListener("click", () => startQuiz(questions));
+
+    async function loadAutomatically() {
+      if (location.protocol === "file:") {
+        element("loadStatus").textContent = "При прямом открытии HTML браузер блокирует чтение соседнего JSON. Выберите файл вручную. Для автозагрузки запустите в этой папке: python -m http.server 8000, затем откройте http://localhost:8000. Обновление страницы сбрасывает тест.";
+        return;
+      }
+      const version = ++loadVersion;
+      try {
+        const response = await fetch(new URL("questions-main.json", location.href), { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
+        const data = await response.json();
+        if (version === loadVersion) startQuiz(parseQuestions(data));
+      } catch (error) {
+        if (version !== loadVersion) return;
+        element("loadStatus").textContent = "Выберите файл вопросов вручную.";
+        element("loadError").textContent = `Автозагрузка не удалась: ${error.message}`;
+      }
+    }
+    loadAutomatically();
+  </script>
+</body>
+</html>
